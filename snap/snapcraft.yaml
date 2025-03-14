@@ -18,8 +18,8 @@ confinement: strict
 adopt-info: jellyfin
 license: GPL-2.0
 platforms:
-  amd64: {}
-  arm64: {}
+  amd64:
+  arm64:
 source-code: https://github.com/IsaacJT/jellyfin-snap/tree/main
 contact: isaac@is.having.coffee
 issues: https://github.com/IsaacJT/jellyfin-snap/issues
@@ -30,34 +30,31 @@ package-repositories:
     suites: [noble]
     components: [main]
     key-id: 4918AABC486CA052358D778D49023CD01DE21A7B
-    architectures:
-      - arm64
-      - amd64
+    architectures: [amd64, arm64]
   - type: apt
     url: https://repo.radeon.com/rocm/apt/debian
     suites: [jammy]
     components: [main]
     key-id: CA8BB4727A47B4D09B4EE8969386B48A1A693C5C
-    architectures:
-      - amd64
+    architectures: [amd64]
 
 parts:
   jellyfin:
     plugin: nil
     stage-packages:
-      - jellyfin-server:${CRAFT_ARCH_BUILD_FOR}
-      - jellyfin-web:all
-      - jellyfin-ffmpeg6:${CRAFT_ARCH_BUILD_FOR}
-      - va-driver-all:${CRAFT_ARCH_BUILD_FOR}
-      - libavcodec60:${CRAFT_ARCH_BUILD_FOR}
-      - libavcodec-extra60:${CRAFT_ARCH_BUILD_FOR}
-      - vainfo:${CRAFT_ARCH_BUILD_FOR}
-      - libdrm-common:${CRAFT_ARCH_BUILD_FOR}
-      - clinfo:${CRAFT_ARCH_BUILD_FOR}
-      - on amd64:
-        - intel-opencl-icd:${CRAFT_ARCH_BUILD_FOR}
-        - rocm-opencl-runtime:${CRAFT_ARCH_BUILD_FOR}
-        - libquadmath0:${CRAFT_ARCH_BUILD_FOR}
+      - clinfo
+      - jellyfin-ffmpeg7
+      - jellyfin-server
+      - jellyfin-web
+      - libavcodec-extra60
+      - libavcodec60
+      - libdrm-common
+      - va-driver-all
+      - vainfo
+      - to amd64:
+        - intel-opencl-icd
+        - libquadmath0
+        - rocm-opencl-runtime
     override-build: |
       craftctl default
       craftctl set grade="stable"
@@ -79,6 +76,25 @@ parts:
         -t "${CRAFT_PART_INSTALL}"/usr/local/bin
 
 apps:
+  vainfo:
+    command: usr/bin/vainfo
+    plugs:
+      - opengl
+    environment: &_environment
+      ROC_ENABLE_PRE_VEGA: "1"
+      LD_LIBRARY_PATH: /usr/lib/jellyfin-ffmpeg/lib:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/vdpau:$LD_LIBRARY_PATH
+      LIBGL_DRIVERS_PATH: /usr/lib/jellyfin-ffmpeg/lib:/usr/lib/jellyfin-ffmpeg/lib/dri:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/dri:$LIBGL_DRIVERS_PATH
+      LIBVA_DRIVERS_PATH: /usr/lib/jellyfin-ffmpeg/lib:/usr/lib/jellyfin-ffmpeg/lib/dri:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/dri:$LIBVA_DRIVERS_PATH
+  ffmpeg:
+    command: usr/lib/jellyfin-ffmpeg/ffmpeg
+    plugs:
+      - opengl
+    environment: *_environment
+  clinfo:
+    command: usr/bin/clinfo
+    plugs:
+      - opengl
+    environment: *_environment
   itrue-jellyfin:
     command: usr/local/bin/jellyfin.sh
     daemon: simple
@@ -91,28 +107,13 @@ apps:
       - mount-observe
       - firewall-control
     environment:
+      <<: *_environment
+      ROC_ENABLE_PRE_VEGA: "1"
       JELLYFIN_LOG_DIR: "${SNAP_DATA}/logs"
       JELLYFIN_CACHE_DIR: "${SNAP_COMMON}/cache"
       JELLYFIN_CONFIG_DIR: "${SNAP_COMMON}/config"
       JELLYFIN_DATA_DIR: "${SNAP_COMMON}/data"
       JELLYFIN_WEB_DIR: "${SNAP}/usr/share/jellyfin/web"
-  vainfo:
-    command: usr/bin/vainfo
-    plugs:
-      - opengl
-  ffmpeg:
-    command: usr/lib/jellyfin-ffmpeg/ffmpeg
-    plugs:
-      - opengl
-  clinfo:
-    command: usr/bin/clinfo
-    environment:
-    plugs:
-      - opengl
-
-environment:
-  # Enable OpenCL on older AMD cards
-  ROC_ENABLE_PRE_VEGA: "1"
 
 layout:
   /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pulseaudio:
@@ -135,5 +136,7 @@ layout:
     bind: $SNAP/usr/lib/jellyfin-ffmpeg
   /etc/OpenCL:
     bind: $SNAP/etc/OpenCL
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/intel-opencl:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/intel-opencl
   /opt:
     bind: $SNAP/opt
