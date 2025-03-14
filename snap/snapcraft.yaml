@@ -18,8 +18,8 @@ confinement: strict
 adopt-info: jellyfin
 license: GPL-2.0
 platforms:
-  amd64: {}
-  arm64: {}
+  amd64:
+  arm64:
 source-code: https://github.com/IsaacJT/jellyfin-snap/tree/main
 contact: isaac@is.having.coffee
 issues: https://github.com/IsaacJT/jellyfin-snap/issues
